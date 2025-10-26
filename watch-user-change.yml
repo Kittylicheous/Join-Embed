@@ -10,7 +10,7 @@ permissions:
 
 env:
   USER_ID: "7807146843"      # <— the Roblox user to watch
-  PLAYER_NAME: "Sleepy"      # <— display name in the embed
+  PLAYER_NAME: "Test"      # <— display name in the embed
   PROFILE_URL: "https://www.roblox.com/users/7807146843/profile"
 
 jobs:
@@ -145,3 +145,4 @@ EOF
           git add .status/${USER_ID}.json
           git commit -m "chore: update ${USER_ID} status -> ${{ steps.now.outputs.status_name }}" || echo "No changes to commit"
           git push
+
