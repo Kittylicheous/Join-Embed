@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Report Player Online</title>
+<style>
+  body{font-family:Inter,system-ui,sans-serif;max-width:720px;margin:36px auto;padding:18px}
+  .card{padding:16px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.06);margin-bottom:14px}
+  label{display:block;margin-top:10px;font-weight:600}
+  input{width:100%;padding:10px;margin-top:6px;border-radius:8px;border:1px solid #ddd}
+  button{margin-top:12px;padding:10px 14px;border-radius:8px;border:0;cursor:pointer;font-weight:700}
+  .row{display:flex;gap:8px}
+  .btn-primary{background:linear-gradient(180deg,#ff6a00,#e65c00);color:#fff}
+  .btn-ghost{background:#f4f4f6}
+  small{color:#666}
+</style>
+</head>
+<body>
+  <h1>Report player online (safe)</h1>
+  <p>Fill out the info and click <strong>Report Online</strong>. This will open a pre-filled GitHub Issue in this repo — doing so triggers a GitHub Action that posts an embed to Discord with two buttons (Join & View Player).</p>
+
+  <div class="card">
+    <label for="username">Player name (display)</label>
+    <input id="username" placeholder="ExamplePlayer" />
+
+    <label for="userid">Player userId</label>
+    <input id="userid" placeholder="12345678" />
+
+    <label for="placeid">Place ID (the game/place you want Join to open)</label>
+    <input id="placeid" placeholder="9876543" />
+
+    <div class="row">
+      <button class="btn-primary" id="reportBtn">Report Online →</button>
+      <button class="btn-ghost" id="previewBtn">Preview Links</button>
+    </div>
+
+    <small>Notes: no cookies are collected. Users must be logged into Roblox in their browser to actually join.</small>
+  </div>
+
+  <div id="preview" class="card" style="display:none">
+    <strong>Preview</strong>
+    <p id="links"></p>
+  </div>
+
+<script>
+const owner = "Kittylicheous"   // me
+const repo = "Join-Embed"       // this repo
+
+function makeIssueUrl(username, userId, placeId) {
+  // We place the data as JSON in the issue body so the Action can read it easily.
+  const bodyObj = {
+    username: username,
+    userId: userId,
+    placeId: placeId
+  };
+  const body = encodeURIComponent(JSON.stringify(bodyObj));
+  const title = encodeURIComponent(`ONLINE: ${username} (${userId})`);
+  return `https://github.com/${owner}/${repo}/issues/new?title=${title}&body=${body}`;
+}
+
+document.getElementById("reportBtn").addEventListener("click", () => {
+  const username = document.getElementById("username").value.trim();
+  const userId = document.getElementById("userid").value.trim();
+  const placeId = document.getElementById("placeid").value.trim();
+  if (!username || !userId || !placeId) { alert("Please fill all fields."); return; }
+  // open pre-filled new issue (user must confirm/create the issue)
+  const url = makeIssueUrl(username, userId, placeId);
+  window.open(url, "_blank");
+});
+
+document.getElementById("previewBtn").addEventListener("click", () => {
+  const username = document.getElementById("username").value.trim() || "ExamplePlayer";
+  const userId = document.getElementById("userid").value.trim() || "123456";
+  const placeId = document.getElementById("placeid").value.trim() || "98765";
+  const joinUrl = `https://www.roblox.com/games/${placeId}`;
+  const profileUrl = `https://www.roblox.com/users/${userId}/profile`;
+  document.getElementById("links").innerHTML =
+    `<div><strong>Join URL:</strong> <a href="${joinUrl}" target="_blank" rel="noopener">${joinUrl}</a></div>
+     <div style="margin-top:6px"><strong>Profile:</strong> <a href="${profileUrl}" target="_blank" rel="noopener">${profileUrl}</a></div>`;
+  document.getElementById("preview").style.display = "block";
+});
+</script>
+</body>
+</html>
