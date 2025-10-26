@@ -77,7 +77,31 @@ jobs:
           STATUS_RAW: ${{ steps.now.outputs.status_raw }}
           PLACE_ID: ${{ steps.now.outputs.place_id }}
         run: |
-          # Create join button if player is in game
+          # Pick emoji + color + description
+          case "$STATUS_NAME" in
+            "IN_GAME")
+              EMOJI="🟢"
+              COLOR=3066993
+              DESCRIPTION="Click below to view profile or join."
+              ;;
+            "ONLINE")
+              EMOJI="🟢"
+              COLOR=3066993
+              DESCRIPTION="Click below to view profile."
+              ;;
+            "OFFLINE")
+              EMOJI="🔴"
+              COLOR=15158332
+              DESCRIPTION="Click below to view profile."
+              ;;
+            *)
+              EMOJI="⚪"
+              COLOR=9807270
+              DESCRIPTION="Click below to view profile."
+              ;;
+          esac
+
+          # Create join button only if in-game
           if [ "$STATUS_RAW" = "2" ] && [ -n "$PLACE_ID" ]; then
             JOIN_BTN="{\"type\":2,\"style\":5,\"label\":\"Join Game\",\"url\":\"https://www.roblox.com/games/$PLACE_ID\"}"
           else
@@ -87,21 +111,15 @@ jobs:
           # Always include profile button
           PROFILE_BTN="{\"type\":2,\"style\":5,\"label\":\"View Profile\",\"url\":\"$PROFILE_URL\"}"
 
+          # Combine buttons
           if [ -n "$JOIN_BTN" ]; then
             COMPONENTS="{\"type\":1,\"components\":[${JOIN_BTN},${PROFILE_BTN}]}"
           else
             COMPONENTS="{\"type\":1,\"components\":[${PROFILE_BTN}]}"
           fi
 
-          # Set color
-          case "$STATUS_NAME" in
-            "IN_GAME"|"ONLINE") COLOR=3066993 ;;  # green
-            "OFFLINE") COLOR=15158332 ;;          # red
-            *) COLOR=9807270 ;;                   # gray
-          esac
-
-          # Build Discord payload
-          echo "{\"embeds\":[{\"title\":\"$PLAYER_NAME is now $STATUS_NAME\",\"description\":\"Click below to view profile or join.\",\"color\":$COLOR}],\"components\":[${COMPONENTS}]}" > payload.json
+          # Build final payload
+          echo "{\"embeds\":[{\"title\":\"${EMOJI} ${PLAYER_NAME} is now ${STATUS_NAME}\",\"description\":\"${DESCRIPTION}\",\"color\":${COLOR}}],\"components\":[${COMPONENTS}]}" > payload.json
 
           # Send to Discord
           curl -s -H "Content-Type: application/json" -X POST -d @payload.json "$DISCORD_WEBHOOK"
