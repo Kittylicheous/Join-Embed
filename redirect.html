@@ -1,21 +1,50 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Redirecting to Roblox…</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script>
-    // get the ?url= parameter and redirect to it
-    const params = new URLSearchParams(window.location.search);
-    const target = params.get("url");
-    if (target) {
-      window.location.href = decodeURIComponent(target);
-    } else {
-      document.body.innerHTML = "<h2>No redirect URL provided.</h2>";
-    }
-  </script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Launching Roblox…</title>
+<style>
+  body {
+    background-color: #111;
+    color: #fff;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    padding-top: 100px;
+  }
+  a {
+    background: #00b06b;
+    color: white;
+    text-decoration: none;
+    padding: 15px 30px;
+    border-radius: 8px;
+    font-size: 20px;
+    display: inline-block;
+    margin-top: 20px;
+  }
+</style>
+<script>
+  const params = new URLSearchParams(location.search);
+  const target = params.get("url");
+  if (target) {
+    // try auto redirect
+    setTimeout(() => { window.location.href = decodeURIComponent(target); }, 500);
+  }
+</script>
 </head>
 <body>
-  <p>Opening Roblox…</p>
+  <h1>Opening Roblox…</h1>
+  <p>If nothing happens, click below to join manually.</p>
+  <a id="joinBtn" href="#">Join Game</a>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const target = params.get("url");
+    if (target) {
+      document.getElementById("joinBtn").href = decodeURIComponent(target);
+    } else {
+      document.body.innerHTML = "<h2>Missing ?url= parameter</h2>";
+    }
+  </script>
 </body>
 </html>
