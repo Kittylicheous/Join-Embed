@@ -1,0 +1,72 @@
+name: Send Discord Embed on Issue Opened
+
+on:
+  issues:
+    types: [opened]  # Runs whenever a new issue is created
+
+jobs:
+  notify-discord:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Save issue body to file
+        run: |
+          echo "${{ github.event.issue.body }}" > body.json
+          cat body.json
+
+      - name: Extract JSON fields (username, userId, placeId)
+        id: extract
+        run: |
+          python - <<'PY'
+import json, sys, re
+body = open('body.json','r',encoding='utf-8').read()
+try:
+    obj = json.loads(body)
+except:
+    m = re.search(r'(\{.*\})', body, flags=re.S)
+    if not m:
+        print("::error::Could not parse issue body as JSON")
+        sys.exit(1)
+    obj = json.loads(m.group(1))
+print(f"::set-output name=username::{obj.get('username','Unknown')}")
+print(f"::set-output name=userId::{obj.get('userId','0')}")
+print(f"::set-output name=placeId::{obj.get('placeId','0')}")
+PY
+
+      - name: Build payload and post to Discord webhook
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          USERNAME: ${{ steps.extract.outputs.username }}
+          USERID: ${{ steps.extract.outputs.userId }}
+          PLACEID: ${{ steps.extract.outputs.placeId }}
+        run: |
+          cat > payload.json <<EOF
+{
+  "embeds": [
+    {
+      "title": "${USERNAME} is online",
+      "description": "Click a button below to join the game or view the player's Roblox profile.",
+      "color": 3066993
+    }
+  ],
+  "components": [
+    {
+      "type": 1,
+      "components": [
+        {
+          "type": 2,
+          "style": 5,
+          "label": "Join",
+          "url": "https://www.roblox.com/games/${PLACEID}"
+        },
+        {
+          "type": 2,
+          "style": 5,
+          "label": "View Player",
+          "url": "https://www.roblox.com/users/${USERID}/profile"
+        }
+      ]
+    }
+  ]
+}
+EOF
+          curl -s -H "Content-Type: application/json" -X POST -d @payload.json "${DISCORD_WEBHOOK}" -o /dev/null
