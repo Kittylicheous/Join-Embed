@@ -77,50 +77,34 @@ jobs:
           STATUS_RAW: ${{ steps.now.outputs.status_raw }}
           PLACE_ID: ${{ steps.now.outputs.place_id }}
         run: |
+          # Create join button if player is in game
           if [ "$STATUS_RAW" = "2" ] && [ -n "$PLACE_ID" ]; then
-            JOIN_BTN='{ "type": 2, "style": 5, "label": "Join Game", "url": "https://www.roblox.com/games/'"$PLACE_ID"'" }'
+            JOIN_BTN="{\"type\":2,\"style\":5,\"label\":\"Join Game\",\"url\":\"https://www.roblox.com/games/$PLACE_ID\"}"
           else
             JOIN_BTN=""
           fi
 
+          # Always include profile button
+          PROFILE_BTN="{\"type\":2,\"style\":5,\"label\":\"View Profile\",\"url\":\"$PROFILE_URL\"}"
+
           if [ -n "$JOIN_BTN" ]; then
-            COMPONENTS='{
-              "type": 1,
-              "components": [
-                '"$JOIN_BTN"',
-                { "type": 2, "style": 5, "label": "View Profile", "url": "'"$PROFILE_URL"'" }
-              ]
-            }'
+            COMPONENTS="{\"type\":1,\"components\":[${JOIN_BTN},${PROFILE_BTN}]}"
           else
-            COMPONENTS='{
-              "type": 1,
-              "components": [
-                { "type": 2, "style": 5, "label": "View Profile", "url": "'"$PROFILE_URL"'" }
-              ]
-            }'
+            COMPONENTS="{\"type\":1,\"components\":[${PROFILE_BTN}]}"
           fi
 
+          # Set color
           case "$STATUS_NAME" in
-            "IN_GAME"|"ONLINE") COLOR=3066993 ;;
-            "OFFLINE") COLOR=15158332 ;;
-            *) COLOR=9807270 ;;
+            "IN_GAME"|"ONLINE") COLOR=3066993 ;;  # green
+            "OFFLINE") COLOR=15158332 ;;          # red
+            *) COLOR=9807270 ;;                   # gray
           esac
 
-          cat > payload.json <<EOF
-{
-  "embeds": [
-    {
-      "title": "${PLAYER_NAME} is now ${STATUS_NAME}",
-      "description": "Click below for profile${JOIN_BTN:+ or to join.}",
-      "color": ${COLOR},
-      "url": "${PROFILE_URL}"
-    }
-  ],
-  "components": [ ${COMPONENTS} ]
-}
-EOF
+          # Build Discord payload
+          echo "{\"embeds\":[{\"title\":\"$PLAYER_NAME is now $STATUS_NAME\",\"description\":\"Click below to view profile or join.\",\"color\":$COLOR}],\"components\":[${COMPONENTS}]}" > payload.json
 
-          curl -s -H "Content-Type: application/json" -X POST -d @payload.json "$DISCORD_WEBHOOK" -o /dev/null
+          # Send to Discord
+          curl -s -H "Content-Type: application/json" -X POST -d @payload.json "$DISCORD_WEBHOOK"
 
       - name: Update saved status
         if: steps.decide.outputs.changed == 'true'
