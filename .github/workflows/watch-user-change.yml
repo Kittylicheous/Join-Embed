@@ -2,15 +2,15 @@ name: Watch Roblox user (only on status change)
 
 on:
   schedule:
-    - cron: "*/10 * * * *"   # every 10 minutes (adjust if you want)
-  workflow_dispatch:         # allow manual run
+    - cron: "*/10 * * * *"   # every 10 minutes
+  workflow_dispatch:
 
 permissions:
-  contents: write            # needed to commit the status file
+  contents: write
 
 env:
-  USER_ID: "7807146843"      # <— the Roblox user to watch
-  PLAYER_NAME: "Test"      # <— display name in the embed
+  USER_ID: "7807146843"
+  PLAYER_NAME: "Sleepy"
   PROFILE_URL: "https://www.roblox.com/users/7807146843/profile"
 
 jobs:
@@ -20,13 +20,13 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Ensure jq exists
+      - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Load last known status (if any)
+      - name: Load last known status
         id: last
-        shell: bash
         run: |
+          mkdir -p .status
           FILE=".status/${USER_ID}.json"
           if [ -f "$FILE" ]; then
             LAST_STATUS=$(jq -r '.status' "$FILE")
@@ -45,9 +45,7 @@ jobs:
           echo "$DATA" > data.json
           STATUS=$(jq -r '.userPresences[0].userPresenceType' data.json)
           PLACE_ID=$(jq -r '.userPresences[0].placeId // empty' data.json)
-          UNIVERSE_ID=$(jq -r '.userPresences[0].universeId // empty' data.json)
 
-          # Map 0=OFFLINE, 1=ONLINE, 2=IN_GAME, 3=IN_STUDIO (rare), 4=??? (reserved)
           case "$STATUS" in
             0) STATUS_NAME="OFFLINE" ;;
             1) STATUS_NAME="ONLINE" ;;
@@ -56,12 +54,11 @@ jobs:
             *) STATUS_NAME="UNKNOWN" ;;
           esac
 
-          echo "status_raw=$STATUS" >> $GITHUB_OUTPUT
           echo "status_name=$STATUS_NAME" >> $GITHUB_OUTPUT
+          echo "status_raw=$STATUS" >> $GITHUB_OUTPUT
           echo "place_id=$PLACE_ID" >> $GITHUB_OUTPUT
-          echo "universe_id=$UNIVERSE_ID" >> $GITHUB_OUTPUT
 
-      - name: Decide if status changed
+      - name: Check if status changed
         id: decide
         run: |
           if [ "${{ steps.now.outputs.status_name }}" != "${{ steps.last.outputs.last_status }}" ]; then
@@ -70,32 +67,27 @@ jobs:
             echo "changed=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Post Discord embed (only if changed)
+      - name: Send Discord message if changed
         if: steps.decide.outputs.changed == 'true'
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
           PLAYER_NAME: ${{ env.PLAYER_NAME }}
           PROFILE_URL: ${{ env.PROFILE_URL }}
           STATUS_NAME: ${{ steps.now.outputs.status_name }}
-          PLACE_ID: ${{ steps.now.outputs.place_id }}
           STATUS_RAW: ${{ steps.now.outputs.status_raw }}
+          PLACE_ID: ${{ steps.now.outputs.place_id }}
         run: |
-          # Build buttons dynamically: Join only if IN_GAME (status_raw==2 and place_id is present)
-          if [ "$STATUS_RAW" = "2" ] && [ -n "$PLACE_ID" ] && [ "$PLACE_ID" != "null" ]; then
-            JOIN_BUTTON='{
-              "type": 2, "style": 5, "label": "Join Game",
-              "url": "https://www.roblox.com/games/'"$PLACE_ID"'"
-            }'
+          if [ "$STATUS_RAW" = "2" ] && [ -n "$PLACE_ID" ]; then
+            JOIN_BTN='{ "type": 2, "style": 5, "label": "Join Game", "url": "https://www.roblox.com/games/'"$PLACE_ID"'" }'
           else
-            JOIN_BUTTON=""
+            JOIN_BTN=""
           fi
 
-          # Components array (buttons)
-          if [ -n "$JOIN_BUTTON" ]; then
+          if [ -n "$JOIN_BTN" ]; then
             COMPONENTS='{
               "type": 1,
               "components": [
-                '"$JOIN_BUTTON"',
+                '"$JOIN_BTN"',
                 { "type": 2, "style": 5, "label": "View Profile", "url": "'"$PROFILE_URL"'" }
               ]
             }'
@@ -108,11 +100,10 @@ jobs:
             }'
           fi
 
-          # Embed color: green for ONLINE/IN_GAME, red for OFFLINE, gray otherwise
           case "$STATUS_NAME" in
-            "IN_GAME"|"ONLINE") COLOR=3066993 ;;   # green
-            "OFFLINE")          COLOR=15158332 ;;  # red
-            *)                  COLOR=9807270 ;;   # gray
+            "IN_GAME"|"ONLINE") COLOR=3066993 ;;
+            "OFFLINE") COLOR=15158332 ;;
+            *) COLOR=9807270 ;;
           esac
 
           cat > payload.json <<EOF
@@ -120,7 +111,7 @@ jobs:
   "embeds": [
     {
       "title": "${PLAYER_NAME} is now ${STATUS_NAME}",
-      "description": "Status changed. Click below for profile${JOIN_BUTTON:+ or to join.}",
+      "description": "Click below for profile${JOIN_BTN:+ or to join.}",
       "color": ${COLOR},
       "url": "${PROFILE_URL}"
     }
@@ -131,7 +122,7 @@ EOF
 
           curl -s -H "Content-Type: application/json" -X POST -d @payload.json "$DISCORD_WEBHOOK" -o /dev/null
 
-      - name: Update saved status (only if changed)
+      - name: Update saved status
         if: steps.decide.outputs.changed == 'true'
         run: |
           mkdir -p .status
@@ -143,5 +134,5 @@ EOF
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .status/${USER_ID}.json
-          git commit -m "chore: update ${USER_ID} status -> ${{ steps.now.outputs.status_name }}" || echo "No changes to commit"
+          git commit -m "Update ${USER_ID} status -> ${{ steps.now.outputs.status_name }}" || echo "No change"
           git push
